@@ -1,0 +1,28 @@
+{
+  "name": "plate-by-plate-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for a 4-day upper/lower strength program with progression, plate math and workout logging",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "node test/smoke.mjs"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2"
+  },
+  "type": "module",
+  "bin": {
+    "plate-by-plate-mcp": "dist/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
