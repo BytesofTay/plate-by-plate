@@ -128,3 +128,10 @@ export function warmups(work: number, s: Settings): { weight: number; reps: numb
   if (sets.length < 3 && work > s.barWeight) sets.splice(1, 0, { weight: s.barWeight, reps: 5 });
   return sets;
 }
+
+/** Step for nudging a working weight by hand: one bar jump for barbells, 2.5 lb per dumbbell, 5 lb otherwise. */
+export function weightStep(ex: Exercise, s: Settings): number {
+  if (ex.kind === "barbell") return barStep(s);
+  if (ex.kind === "dumbbell") return 2.5;
+  return 5;
+}

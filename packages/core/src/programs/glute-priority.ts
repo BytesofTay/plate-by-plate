@@ -1,46 +1,11 @@
-// The Plate by Plate program: a glute-priority 4-day upper/lower strength split
+// Glute Priority: the current Plate by Plate program. A glute-priority 4-day upper/lower strength split
 // built for a lighter lifter (about 88 lb) with some training experience and a full gym.
 // Glutes are trained all four days: heavy on both lower days, a short finisher on each upper day.
 // All weights are in pounds. Dumbbell weights are per hand where `perHand` is set.
 
-export type ExerciseKind = "barbell" | "dumbbell" | "machine" | "assisted" | "bodyweight";
+import type { Day, Program } from "../program.js";
 
-export interface Exercise {
-  id: string;
-  name: string;
-  kind: ExerciseKind;
-  /** Primary strength lift: fixed reps, adds weight every time all reps are hit, deloads after two misses. */
-  main: boolean;
-  /** Counts toward weekly glute work. */
-  glute: boolean;
-  /** Short label shown above the name, e.g. "Glute finisher". */
-  tag?: string;
-  sets: number;
-  repsMin: number;
-  /** Equal to repsMin for fixed-rep lifts. Hitting this on every set earns progression. */
-  repsMax: number;
-  unit: "reps" | "sec";
-  /** Reps are counted per leg or per arm. */
-  perSide?: boolean;
-  /** Weight is per dumbbell. */
-  perHand?: boolean;
-  /** Pounds added when progression is earned. For assisted lifts: pounds of assistance removed. */
-  increment: number;
-  /** Suggested starting weight in pounds (assistance pounds for assisted lifts). */
-  start: number;
-  restSec: number;
-  cue: string;
-}
-
-export interface Day {
-  id: string;
-  name: string;
-  focus: string;
-  suggestedWeekday: string;
-  exercises: Exercise[];
-}
-
-export const PROGRAM: Day[] = [
+const DAYS: Day[] = [
   {
     id: "lower-a",
     name: "Lower A",
@@ -95,9 +60,7 @@ export const PROGRAM: Day[] = [
   },
 ];
 
-export const ROTATION = PROGRAM.map((d) => d.id);
-
-export const RULES = [
+const RULES = [
   "Train 4 days a week in order: Lower A, Upper A, Lower B, Upper B. A good week is Mon / Tue / Thu / Fri.",
   "Glutes get trained all 4 days: heavy on both lower days and a short finisher at the end of each upper day.",
   "Main lifts: squat, deadlift, bench and press are 3 sets of 5, and hip thrust is 3 sets of 8. Get every rep with good form and the weight goes up next time: +5 lb on hip thrust, squat and deadlift, +2.5 lb on bench and press.",
@@ -110,17 +73,10 @@ export const RULES = [
   "Use 1.25 lb plates on bench and press if the gym has them. Small jumps keep progress going for longer.",
 ];
 
-export const FUELING_NOTE =
-  "Muscle, glutes included, is built on food and sleep. At a lighter body weight, eating enough matters as much as the training: include protein at most meals and don't lift on an empty stomach. Check with a doctor before starting if there are any injuries or health concerns.";
-
-export function findExercise(id: string): { day: Day; exercise: Exercise } | undefined {
-  for (const day of PROGRAM) {
-    const exercise = day.exercises.find((e) => e.id === id);
-    if (exercise) return { day, exercise };
-  }
-  return undefined;
-}
-
-export function findDay(id: string): Day | undefined {
-  return PROGRAM.find((d) => d.id === id);
-}
+export const GLUTE_PRIORITY: Program = {
+  id: "glute-priority",
+  name: "Glute Priority",
+  summary: "Strength on the main barbell lifts, with glutes trained all four days (about 30 hard sets a week).",
+  days: DAYS,
+  rules: RULES,
+};

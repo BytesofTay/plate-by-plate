@@ -4,7 +4,8 @@ A glute-priority strength-training app for 4 days a week. It gives you today's w
 
 | Part | What it is | Status |
 | --- | --- | --- |
-| `mcp-server/` | MCP server so Claude can coach and log workouts | Working, tested |
+| `packages/core/` | Program templates, morning routine and progression logic, shared by everything | Working, unit tested |
+| `apps/mcp-server/` | MCP server so Claude can coach and log workouts | Working, tested |
 | `web-prototype/` | Single-file web app (also live as a private claude.ai artifact) | Working |
 | `docs/friends-plan.md` | Plan for Next.js + Supabase with accounts and a friends feed | Next step |
 | `docs/programs.md` | Glute Priority and Balanced Strength program templates | Reference |
@@ -12,17 +13,15 @@ A glute-priority strength-training app for 4 days a week. It gives you today's w
 ## Quick start
 
 ```bash
-# MCP server
-cd mcp-server
+# Build everything and run all tests (core unit tests + MCP end-to-end test)
 npm install
-npm run build
 npm test
 
 # Web prototype: open it in a browser
-open ../web-prototype/index.html
+open web-prototype/index.html
 ```
 
-To connect the MCP server to Claude Desktop, see `mcp-server/README.md`.
+To connect the MCP server to Claude Desktop, see `apps/mcp-server/README.md`.
 
 ## Continue in Claude Code
 

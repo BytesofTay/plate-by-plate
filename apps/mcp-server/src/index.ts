@@ -2,10 +2,31 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { FUELING_NOTE, PROGRAM, ROTATION, RULES, findDay, findExercise, type Exercise } from "./program.js";
-import { e1rm, plates, progress, warmups, type Settings } from "./logic.js";
-import { BREAKFAST_IDEAS, MORNING, MORNING_NOTE } from "./morning.js";
+import {
+  BREAKFAST_IDEAS,
+  FUELING_NOTE,
+  GLUTE_PRIORITY,
+  MORNING,
+  MORNING_NOTE,
+  e1rm,
+  findDay as findDayIn,
+  findExercise as findExerciseIn,
+  nextDayIndex,
+  plates,
+  progress,
+  rotation,
+  warmups,
+  weeklyGluteSets,
+  type Exercise,
+  type Settings,
+} from "@plate-by-plate/core";
 import { DATA_FILE, load, save, type LoggedExercise, type Session, type State } from "./store.js";
+
+// The local server runs the Glute Priority template. The web app lets each person pick one.
+const PROGRAM = GLUTE_PRIORITY;
+const ROTATION = rotation(PROGRAM);
+const findDay = (id: string) => findDayIn(PROGRAM, id);
+const findExercise = (id: string) => findExerciseIn(PROGRAM, id);
 
 const server = new McpServer({ name: "plate-by-plate", version: "1.0.0" });
 
@@ -56,14 +77,14 @@ server.registerTool(
   },
   async () => {
     const lines: string[] = ["PLATE BY PLATE: glute-priority 4-day upper/lower strength program", ""];
-    for (const day of PROGRAM) {
+    for (const day of PROGRAM.days) {
       lines.push(`${day.name} (${day.focus}) [${day.id}], suggested ${day.suggestedWeekday}`);
       for (const ex of day.exercises) lines.push(`  - ${ex.name}: ${scheme(ex)}${ex.main ? " (main lift)" : ""}${ex.tag ? ` (${ex.tag.toLowerCase()})` : ""}${ex.glute ? " [glutes]" : ""}`);
       lines.push("");
     }
-    const gluteSets = PROGRAM.flatMap((d) => d.exercises).filter((e) => e.glute).reduce((n, e) => n + e.sets, 0);
+    const gluteSets = weeklyGluteSets(PROGRAM);
     lines.push(`Glute work: trained 4 days a week, ${gluteSets} hard sets a week.`, "");
-    lines.push("Rules:", ...RULES.map((r) => `  - ${r}`), "", `Fueling: ${FUELING_NOTE}`);
+    lines.push("Rules:", ...PROGRAM.rules.map((r) => `  - ${r}`), "", `Fueling: ${FUELING_NOTE}`);
     return text(lines.join("\n"));
   },
 );
@@ -133,7 +154,7 @@ server.registerTool(
       before,
     };
     state.sessions.push(session);
-    state.nextDay = (ROTATION.indexOf(dayId) + 1) % ROTATION.length;
+    state.nextDay = nextDayIndex(PROGRAM, dayId);
     await save(state);
 
     const next = findDay(ROTATION[state.nextDay])!;
@@ -201,11 +222,11 @@ server.registerTool(
   async () => {
     const state = await load();
     const n = state.sessions.length;
-    if (!n) return text("No workouts logged yet. Current starting weights:\n" + PROGRAM.flatMap((d) => d.exercises.filter((e) => e.main).map((e) => `  ${e.name}: ${state.weights[e.id]} lb`)).join("\n"));
+    if (!n) return text("No workouts logged yet. Current starting weights:\n" + PROGRAM.days.flatMap((d) => d.exercises.filter((e) => e.main).map((e) => `  ${e.name}: ${state.weights[e.id]} lb`)).join("\n"));
     const today = Date.now();
     const within = (days: number) => state.sessions.filter((s) => today - Date.parse(s.date) <= days * 86400000).length;
     const lines = [`Workouts logged: ${n}  (last 7 days: ${within(7)}, last 28 days: ${within(28)} of 16 planned)`, ""];
-    for (const day of PROGRAM) {
+    for (const day of PROGRAM.days) {
       for (const ex of day.exercises) {
         const logs = state.sessions.flatMap((s) => s.exercises.filter((e) => e.exerciseId === ex.id).map((e) => ({ ...e, date: s.date })));
         if (!logs.length) continue;

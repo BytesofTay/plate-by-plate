@@ -4,26 +4,34 @@ A strength-training app built for one main user: a lighter lifter (about 88 lb) 
 
 ## Repo layout
 
-- `mcp-server/` is a TypeScript MCP server (stdio, `@modelcontextprotocol/sdk` + zod). **It's the source of truth for the program:**
-  - `src/program.ts`: days, exercises and rules
+This is an npm workspaces monorepo (`packages/*`, `apps/*`).
+
+- `packages/core/` (`@plate-by-plate/core`) is pure TypeScript with no Node or browser APIs. **It's the source of truth for the program:**
+  - `src/program.ts`: the `Exercise`, `Day` and `Program` types, plus lookups that take a program (`findDay`, `findExercise`, `rotation`, `nextDayIndex`, `startingWeights`)
+  - `src/programs/`: the templates, `glute-priority.ts` and `balanced-strength.ts`, and the `PROGRAMS` registry keyed by template id (`getProgram(id)` falls back to `DEFAULT_PROGRAM_ID`)
   - `src/morning.ts`: morning routine and breakfast ideas
-  - `src/logic.ts`: progression, plate math, warm-ups and e1RM
+  - `src/logic.ts`: progression, plate math, warm-ups, e1RM and `weightStep`. It must stay free of runtime imports, because the prototype inlines its compiled output.
+  - `test/`: vitest unit tests
+- `apps/mcp-server/` is a TypeScript MCP server (stdio, `@modelcontextprotocol/sdk` + zod) that imports core and runs the Glute Priority template.
   - `src/store.ts`: JSON file storage at `~/.plate-by-plate/data.json`, overridable with `PLATE_BY_PLATE_DATA`
   - `src/index.ts`: 10 tools and 1 prompt
+  - `test/smoke.mjs`: end-to-end test over stdio
+- `apps/web/` is the Next.js app (milestone 2, not created yet).
 - `web-prototype/` holds the single-file web app.
   - `app.html` is the claude.ai artifact source.
   - `index.html` is a standalone copy generated from it. It runs in any browser and saves to localStorage.
   - Never edit `index.html` by hand.
-- `scripts/sync-prototype.mjs` copies the program and morning data from the built server into `app.html` (between the `<generated:program>` markers), then regenerates `index.html`.
-- `docs/programs.md` describes both templates: Glute Priority (current) and Balanced Strength (the first version, not in code yet).
+- `scripts/sync-prototype.mjs` copies the Glute Priority program, the morning data and the compiled `logic.js` from the built core package into `app.html` (between the `<generated:program>` and `<generated:logic>` markers), then regenerates `index.html`.
+- `docs/programs.md` describes both templates: Glute Priority (current) and Balanced Strength (the first version).
 - `docs/friends-plan.md` is the build plan: monorepo and shared core, the Supabase app, crews and feed, and RLS.
 
 ## Commands
 
 ```bash
-cd mcp-server && npm install && npm run build && npm test   # build + end-to-end MCP test
-node scripts/sync-prototype.mjs                             # after changing program.ts or morning.ts (build first)
-open web-prototype/index.html                               # run the prototype locally
+npm install && npm test          # build everything, core unit tests, MCP end-to-end test
+npm test -w @plate-by-plate/core # core unit tests only
+npm run sync-prototype           # after changing anything in packages/core
+open web-prototype/index.html    # run the prototype locally
 ```
 
 ## Domain rules (keep these when porting)
@@ -45,12 +53,13 @@ open web-prototype/index.html                               # run the prototype 
 - **Morning routine:** breakfast with protein, water, tea (between meals, because it reduces iron absorption), optional B-complex, and optional creatine at 3 g/day. It's general guidance, not medical advice. Keep the "check with a doctor or pharmacist" note anywhere supplements appear. The routine is private and never shown to friends.
 - **Visual identity:** chalk and iron neutrals with a competition-red accent. Plate colors follow plate size: 45 blue, 35 yellow, 25 green, 10 white, 5 black, 2.5 red, 1.25 chrome. Fonts are Big Shoulders Display, Public Sans and IBM Plex Mono. There are light and dark themes. The tokens are at the top of `web-prototype/app.html`; reuse them in the Next.js app.
 
-## Keeping things in sync (until milestone 1 lands)
+## Keeping the prototype in sync
 
-- The prototype's program data is generated, so run the sync script after editing `program.ts` or `morning.ts`.
-- The prototype's `progress()`, `plates()`, `warmups()`, `loadable()` and `e1rm()` functions are **hand-ported** from `logic.ts`. A logic change must be made in both places. Milestone 1 removes this duplication by moving the logic into `packages/core`.
+- The prototype's program data and progression functions are generated from core, so run `npm run sync-prototype` after changing anything in `packages/core`. Never hand-edit between the `<generated:…>` markers.
+- The prototype only shows the Glute Priority template. Program choice arrives with the Next.js app.
+- Republishing the live claude.ai artifact is a separate, manual step.
 
 ## Where things live
 
 - The live claude.ai version of the prototype is https://claude.ai/artifact/4f1NyxRXddCVx4FfUfp7dY. It's private to Tayllor and uses claude.ai's per-user `db` storage under `data/users/<id>/profile`.
-- This isn't a git repo yet. Run `git init` before the milestone 1 restructure.
+- Git history starts with an "Initial import" commit of the pre-monorepo layout; files were moved with `git mv`, so `git log --follow` works across the restructure.

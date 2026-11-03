@@ -42,10 +42,12 @@ There is also a prompt, `coach_todays_workout`, that starts with a quick morning
 
 Requires Node.js 18 or newer.
 
+This server is part of the repo's npm workspaces and imports `@plate-by-plate/core`. Run these from the repo root:
+
 ```bash
 npm install
 npm run build
-npm test   # optional end-to-end check
+npm test   # optional: core unit tests + this server's end-to-end check
 ```
 
 ## Connect to Claude Desktop
@@ -57,7 +59,7 @@ Open Claude Desktop settings, go to Developer, choose Edit Config, and add the s
   "mcpServers": {
     "plate-by-plate": {
       "command": "node",
-      "args": ["/full/path/to/plate-by-plate/mcp-server/dist/index.js"]
+      "args": ["/full/path/to/plate-by-plate/apps/mcp-server/dist/index.js"]
     }
   }
 }

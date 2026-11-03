@@ -2,7 +2,7 @@
 
 Both templates are 4 days a week, run in order: Lower A, Upper A, Lower B, Upper B. Weights are in pounds; "each" means per dumbbell. Start weights were picked for the main user (a lighter lifter, about 88 lb, with some experience). Anyone else should set their own after a first easy session.
 
-Progression is the same for both templates (see `mcp-server/src/logic.ts`):
+Progression is the same for both templates (see `packages/core/src/logic.ts`):
 
 - **Main lifts** (fixed reps): every set hits the target, the weight goes up next session. Barbell jumps are never smaller than two of the smallest plates.
 - **Two misses in a row** at the same weight on a main lift: drop about 10%, rounded down to a loadable weight, never below the bar.
@@ -12,7 +12,7 @@ Progression is the same for both templates (see `mcp-server/src/logic.ts`):
 
 ## Glute Priority (current, id `glute-priority`)
 
-Glutes are trained all four days, about 30 hard sets a week. This is the program in `mcp-server/src/program.ts` today.
+Glutes are trained all four days, about 30 hard sets a week. In code: `packages/core/src/programs/glute-priority.ts`.
 
 ### Lower A · Squat (Monday)
 
@@ -56,7 +56,7 @@ Glutes are trained all four days, about 30 hard sets a week. This is the program
 
 ## Balanced Strength (the first version, id `balanced-strength`)
 
-The original program before the glute focus. It isn't in code anymore; recreate it as a second template when programs become selectable (see `docs/friends-plan.md`, milestone 1). It's a good default for her boyfriend or other friends. Keep the same exercise ids where the movement is the same.
+The original program before the glute focus, in code at `packages/core/src/programs/balanced-strength.ts`. It's a good default for her boyfriend or other friends. It uses the same exercise ids as Glute Priority wherever the movement is the same.
 
 ### Lower A · Squat (Monday)
 

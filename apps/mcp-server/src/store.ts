@@ -1,8 +1,7 @@
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { PROGRAM } from "./program.js";
-import type { Result, Settings } from "./logic.js";
+import { GLUTE_PRIORITY, startingWeights, type Result, type Settings } from "@plate-by-plate/core";
 
 export interface LoggedExercise {
   exerciseId: string;
@@ -35,8 +34,7 @@ export interface State {
 export const DATA_FILE = process.env.PLATE_BY_PLATE_DATA ?? path.join(os.homedir(), ".plate-by-plate", "data.json");
 
 export function freshState(): State {
-  const weights: Record<string, number> = {};
-  for (const day of PROGRAM) for (const ex of day.exercises) weights[ex.id] = ex.start;
+  const weights = startingWeights(GLUTE_PRIORITY);
   return { version: 1, settings: { barWeight: 45, smallestPlate: 1.25 }, weights, failStreak: {}, nextDay: 0, sessions: [] };
 }
 

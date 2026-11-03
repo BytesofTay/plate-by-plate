@@ -296,8 +296,8 @@ main.gut { padding-block: 22px 150px; display: grid; gap: 22px; }
 </div>
 
 <script>
-// ---------- Program (mirrors the Plate by Plate MCP server) ----------
-// <generated:program> Do not edit by hand: generated from mcp-server/src/program.ts and morning.ts by scripts/sync-prototype.mjs
+// ---------- Program (from packages/core) ----------
+// <generated:program> Do not edit by hand: generated from packages/core (Glute Priority template and morning.ts) by scripts/sync-prototype.mjs
 const PROGRAM = [
   { "id":"lower-a","name":"Lower A","focus":"Squat","suggestedWeekday":"Monday", exercises: [
     {"id":"back-squat","name":"Back Squat","kind":"barbell","main":true,"glute":true,"sets":3,"repsMin":5,"repsMax":5,"unit":"reps","increment":5,"start":65,"restSec":180,"cue":"Brace, then sit deep, at least thighs parallel. Full depth is what works the glutes. Drive up through your whole foot."},
@@ -356,61 +356,115 @@ const RULES = [
   "Use 1.25 lb plates on bench and press if the gym has them. Small jumps keep progress going for longer.",
 ];
 
-// ---------- Progression logic (same rules as the MCP server) ----------
+// ---------- Progression logic ----------
 const r2 = n => Math.round(n * 100) / 100;
 const fmt = n => String(r2(n));
-const barStep = s => s.smallestPlate * 2;
-function loadable(w, s) {
-  const st = barStep(s);
-  if (w <= s.barWeight) return s.barWeight;
-  return r2(s.barWeight + Math.floor((w - s.barWeight) / st + 1e-9) * st);
-}
-const effInc = (ex, s) => ex.kind === "barbell" ? Math.max(ex.increment, barStep(s)) : ex.increment;
-function stepFor(ex, s) {
-  if (ex.kind === "barbell") return barStep(s);
-  if (ex.kind === "dumbbell") return 2.5;
-  return 5;
-}
-function progress(ex, weight, reps, streak, s) {
-  const done = reps.slice(0, ex.sets);
-  const allHit = done.length >= ex.sets && done.every(r => r >= ex.repsMax);
-  if (ex.kind === "bodyweight") {
-    return { next: 0, result: allHit ? "progress" : "logged", streak: 0,
-      message: allHit ? `Top of the range on every set. Slow the tempo or ${ex.unit === "sec" ? "hold a plate on your back" : "hold a light dumbbell"} next time.` : `Aim for ${ex.repsMax}${ex.unit === "sec" ? " seconds" : " reps"} on every set.` };
-  }
-  if (ex.kind === "assisted") {
-    if (allHit) { const n = Math.max(0, r2(weight - ex.increment)); return { next: n, result: "progress", streak: 0, message: n === 0 ? "Next time: unassisted pull-ups." : `Next time: ${fmt(n)} lb of assistance, 5 lb less help.` }; }
-    return { next: weight, result: "repeat", streak: 0, message: `Stay at ${fmt(weight)} lb of assistance until you get ${ex.repsMax} reps on every set.` };
-  }
-  const inc = effInc(ex, s);
-  if (allHit) { const n = r2(weight + inc); return { next: n, result: "progress", streak: 0, message: `All reps done. Next time: ${fmt(n)} lb.` }; }
-  if (ex.main) {
-    const st = streak + 1;
-    if (st >= 2) { const n = loadable(weight * 0.9, s); return { next: n, result: "deload", streak: 0, message: `Second miss at ${fmt(weight)} lb. Drop to ${fmt(n)} lb and build back up.` }; }
-    return { next: weight, result: "repeat", streak: st, message: `Missed some reps. Repeat ${fmt(weight)} lb next time.` };
-  }
-  return { next: weight, result: "repeat", streak: 0, message: `Stay at ${fmt(weight)} lb until you hit ${ex.repsMax} reps on every set.` };
-}
-const e1rm = (w, r) => (r <= 0 || w <= 0) ? 0 : r === 1 ? w : Math.round(w * (1 + Math.min(r, 10) / 30));
+// <generated:logic> Do not edit by hand: generated from packages/core/src/logic.ts by scripts/sync-prototype.mjs
 const PLATES = [45, 35, 25, 10, 5, 2.5, 1.25];
+const round = (n) => Math.round(n * 100) / 100;
+/** Smallest total jump a barbell can make (one small plate per side). */
+function barStep(s) {
+    return s.smallestPlate * 2;
+}
+/** Round a barbell weight down to something loadable with the available plates. */
+function loadable(weight, s) {
+    const step = barStep(s);
+    if (weight <= s.barWeight)
+        return s.barWeight;
+    return round(s.barWeight + Math.floor((weight - s.barWeight) / step + 1e-9) * step);
+}
+function effectiveIncrement(ex, s) {
+    if (ex.kind === "barbell")
+        return Math.max(ex.increment, barStep(s));
+    return ex.increment;
+}
+/**
+ * Decide next session's weight from what was done today.
+ * reps: one entry per set actually performed (seconds for timed holds).
+ */
+function progress(ex, weight, reps, failStreak, s) {
+    const done = reps.slice(0, ex.sets);
+    const allHit = done.length >= ex.sets && done.every((r) => r >= ex.repsMax);
+    if (ex.kind === "bodyweight") {
+        return {
+            nextWeight: 0,
+            result: allHit ? "progress" : "logged",
+            failStreak: 0,
+            message: allHit
+                ? `Top of the range on every set. Slow the tempo or ${ex.unit === "sec" ? "hold a plate on your back" : "hold a light dumbbell"} next time.`
+                : `Logged. Aim for ${ex.repsMax} ${ex.unit === "sec" ? "seconds" : "reps"} on every set.`,
+        };
+    }
+    if (ex.kind === "assisted") {
+        if (allHit) {
+            const next = Math.max(0, round(weight - ex.increment));
+            return { nextWeight: next, result: "progress", failStreak: 0, message: next === 0 ? "Next time: unassisted pull-ups." : `Next time: ${next} lb of assistance (5 lb less help).` };
+        }
+        return { nextWeight: weight, result: "repeat", failStreak: 0, message: `Stay at ${weight} lb of assistance until you get ${ex.repsMax} reps on every set.` };
+    }
+    const inc = effectiveIncrement(ex, s);
+    if (allHit) {
+        const next = round(weight + inc);
+        return { nextWeight: next, result: "progress", failStreak: 0, message: `All reps done. Next time: ${next} lb (+${inc}).` };
+    }
+    if (ex.main) {
+        const streak = failStreak + 1;
+        if (streak >= 2) {
+            const next = loadable(weight * 0.9, s);
+            return { nextWeight: next, result: "deload", failStreak: 0, message: `Second miss at ${weight} lb. Deload to ${next} lb and build back up.` };
+        }
+        return { nextWeight: weight, result: "repeat", failStreak: streak, message: `Missed some reps. Repeat ${weight} lb next time.` };
+    }
+    return { nextWeight: weight, result: "repeat", failStreak: 0, message: `Stay at ${weight} lb until you hit ${ex.repsMax} reps on every set.` };
+}
+/** Estimated one-rep max (Epley). Only meaningful for loaded lifts with 1-10 reps. */
+function e1rm(weight, reps) {
+    if (reps <= 0 || weight <= 0)
+        return 0;
+    if (reps === 1)
+        return weight;
+    return Math.round(weight * (1 + Math.min(reps, 10) / 30));
+}
+/** Plates to put on each side of the bar. */
 function plates(target, s) {
-  const avail = PLATES.filter(p => p >= s.smallestPlate);
-  if (target <= s.barWeight) return { loaded: s.barWeight, perSide: [], exact: target === s.barWeight };
-  let side = r2((target - s.barWeight) / 2);
-  const perSide = [];
-  for (const p of avail) while (side + 1e-9 >= p) { perSide.push(p); side = r2(side - p); }
-  const loaded = r2(s.barWeight + 2 * perSide.reduce((a, b) => a + b, 0));
-  return { loaded, perSide, exact: Math.abs(loaded - target) < 1e-6 };
+    const avail = PLATES.filter((p) => p >= s.smallestPlate);
+    if (target <= s.barWeight) {
+        return { target, loaded: s.barWeight, perSide: [], exact: target === s.barWeight, note: target < s.barWeight ? `Below the ${s.barWeight} lb bar. Use a lighter bar or dumbbells.` : undefined };
+    }
+    let side = round((target - s.barWeight) / 2);
+    const perSide = [];
+    for (const p of avail) {
+        while (side + 1e-9 >= p) {
+            perSide.push(p);
+            side = round(side - p);
+        }
+    }
+    const loaded = round(s.barWeight + 2 * perSide.reduce((a, b) => a + b, 0));
+    const exact = Math.abs(loaded - target) < 1e-6;
+    return { target, loaded, perSide, exact, note: exact ? undefined : `Closest loadable weight is ${loaded} lb.` };
 }
+/** Ramp-up sets for a main barbell lift. */
 function warmups(work, s) {
-  const sets = [{ weight: s.barWeight, reps: 10 }];
-  for (const [pct, reps] of [[0.5, 5], [0.7, 3], [0.85, 2]]) {
-    const w = loadable(work * pct, s);
-    if (w > sets[sets.length - 1].weight && w < work) sets.push({ weight: w, reps });
-  }
-  if (sets.length < 3 && work > s.barWeight) sets.splice(1, 0, { weight: s.barWeight, reps: 5 });
-  return sets;
+    const sets = [{ weight: s.barWeight, reps: 10 }];
+    for (const [pct, reps] of [[0.5, 5], [0.7, 3], [0.85, 2]]) {
+        const w = loadable(work * pct, s);
+        if (w > sets[sets.length - 1].weight && w < work)
+            sets.push({ weight: w, reps });
+    }
+    // Light lifts get a second empty-bar set so there are always a few ramp-ups.
+    if (sets.length < 3 && work > s.barWeight)
+        sets.splice(1, 0, { weight: s.barWeight, reps: 5 });
+    return sets;
 }
+/** Step for nudging a working weight by hand: one bar jump for barbells, 2.5 lb per dumbbell, 5 lb otherwise. */
+function weightStep(ex, s) {
+    if (ex.kind === "barbell")
+        return barStep(s);
+    if (ex.kind === "dumbbell")
+        return 2.5;
+    return 5;
+}
+// </generated:logic>
 
 // ---------- State ----------
 function freshProfile() {
@@ -731,7 +785,7 @@ function viewProgress() {
 function viewSetup() {
   const s = S.profile.settings;
   const seg = (act, opts, cur) => `<div class="seg" role="group">${opts.map(([v, l]) => `<button type="button" data-act="${act}" data-v="${v}" aria-pressed="${v === cur}">${l}</button>`).join("")}</div>`;
-  const rows = PROGRAM.map(day => `<div class="wgroup"><h4>${day.name} · ${day.focus}</h4>${day.exercises.filter(ex => ex.kind !== "bodyweight").map(ex => `<div class="wrow"><label for="w-${ex.id}">${esc(ex.name)}</label><span class="inp"><input id="w-${ex.id}" type="number" inputmode="decimal" min="0" step="${stepFor(ex, s)}" value="${fmt(S.profile.weights[ex.id] ?? ex.start)}" data-weight="${ex.id}"><span class="unit">${ex.kind === "assisted" ? "lb assist" : ex.perHand ? "lb each" : "lb"}</span></span></div>`).join("")}</div>`).join("");
+  const rows = PROGRAM.map(day => `<div class="wgroup"><h4>${day.name} · ${day.focus}</h4>${day.exercises.filter(ex => ex.kind !== "bodyweight").map(ex => `<div class="wrow"><label for="w-${ex.id}">${esc(ex.name)}</label><span class="inp"><input id="w-${ex.id}" type="number" inputmode="decimal" min="0" step="${weightStep(ex, s)}" value="${fmt(S.profile.weights[ex.id] ?? ex.start)}" data-weight="${ex.id}"><span class="unit">${ex.kind === "assisted" ? "lb assist" : ex.perHand ? "lb each" : "lb"}</span></span></div>`).join("")}</div>`).join("");
   const storage = S.mode === "cloud" ? "Your workouts save to your Claude account, so they follow you to any device. Only you can see them, even if this app is shared." : "Your workouts are saved in this browser on this device.";
   const reset = S.confirm === "reset"
     ? `<div class="confirm"><p>Delete every logged workout and go back to the starting weights? This can't be undone.</p><button type="button" class="btn danger" data-act="reset-yes">Delete everything</button><button type="button" class="btn" data-act="cancel">Cancel</button></div>`
@@ -816,8 +870,8 @@ function finishWorkout() {
     if (!reps.length) continue;
     const w = weightFor(dayId, ex.id);
     const p = progress(ex, w, reps, S.profile.failStreak[ex.id] || 0, S.profile.settings);
-    S.profile.weights[ex.id] = p.next;
-    S.profile.failStreak[ex.id] = p.streak;
+    S.profile.weights[ex.id] = p.nextWeight;
+    S.profile.failStreak[ex.id] = p.failStreak;
     logged.push({ exerciseId: ex.id, weight: w, reps, result: p.result, message: p.message });
   }
   if (!logged.length) return;
@@ -874,7 +928,7 @@ document.addEventListener("click", ev => {
     const ex = EX[b.dataset.ex], s = S.profile.settings;
     const d = draftFor(dayId, true);
     const cur = weightFor(dayId, ex.id);
-    let n = r2(cur + (+b.dataset.d) * stepFor(ex, s));
+    let n = r2(cur + (+b.dataset.d) * weightStep(ex, s));
     if (ex.kind === "barbell") n = Math.max(s.barWeight, n);
     d.weights[ex.id] = Math.max(0, n);
     saveDrafts(); render();

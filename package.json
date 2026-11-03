@@ -1,0 +1,17 @@
+{
+  "name": "plate-by-plate",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run build && npm test --workspaces --if-present",
+    "sync-prototype": "npm run build -w @plate-by-plate/core && node scripts/sync-prototype.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
